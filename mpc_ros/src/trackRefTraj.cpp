@@ -151,7 +151,7 @@ class FG_eval
 
             // fg[x] for constraints
             // Initial constraints
-            fg[1 + _x_start] = vars[_x_start];
+            fg[1 + _x_start] = vars[_x_start]; 
             fg[1 + _y_start] = vars[_y_start];
             fg[1 + _theta_start] = vars[_theta_start];
             fg[1 + _v_start] = vars[_v_start];

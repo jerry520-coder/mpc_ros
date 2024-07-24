@@ -1,36 +1,51 @@
 <launch>
     <!--  ************** Global Parameters ***************  -->
     <param name="use_sim_time" value="true"/>
+     <!-- 控制器类型参数，默认使用 MPC，可选 DWA、MPC、Pure Pursuit -->
     <arg name="controller"  default="mpc" doc="opt: dwa, mpc, pure_pursuit"/> 
+     <!-- 机器人模型参数，默认使用 serving_bot -->
     <arg name="model"  default="serving_bot" doc="opt: serving_bot"/> 
+     <!-- 轨迹类型参数，默认使用 epitrochoid，可选 circle, epitrochoid, square, infinite -->
     <arg name="trajectory_type"  default="epitrochoid" doc="opt: circle, epitrochoid, square, infinite"/> 
+    <!-- 是否启用 GUI 参数，默认为 false -->
     <arg name="gui" default="false"/>
     
 
     <!--  ************** GAZEBO Simulator ***************  -->
+     <!-- 初始 z 位置和姿态参数 -->
     <arg name="z_pos" default="0.0"/>
     <arg name="roll" default="0"/>
     <arg name="pitch" default="0"/>
     <!--  ************** circle ***************  -->
+     <!-- 轨迹类型为 circle 时的初始位置和方向参数 -->
     <arg name="x_pos" default="0.0" if="$(eval trajectory_type == 'circle')" />
     <arg name="y_pos" default="-5.0" if="$(eval trajectory_type == 'circle')" />
     <arg name="yaw" default="0" if="$(eval trajectory_type == 'circle')" />
+
     <!--  ************** epitrochoid ***************-->
+     <!-- 轨迹类型为 epitrochoid 时的初始位置和方向参数 -->
     <arg name="x_pos" default="3.0"  if="$(eval trajectory_type == 'epitrochoid')" />
     <arg name="y_pos" default="0.01" if="$(eval trajectory_type == 'epitrochoid')"/>
     <arg name="yaw" default="-1.57" if="$(eval trajectory_type == 'epitrochoid')"/>
+
     <!--  ************** square *************** -->
+     <!-- 轨迹类型为 square 时的初始位置和方向参数 -->
     <arg name="x_pos" default="0.0" if="$(eval trajectory_type == 'square')"/>
     <arg name="y_pos" default="0.0" if="$(eval trajectory_type == 'square')"/>
     <arg name="yaw" default="1.57075" if="$(eval trajectory_type == 'square')"/>
+
     <!--  ************** infinite ***************-->
+     <!-- 轨迹类型为 infinite 时的初始位置和方向参数 -->
     <arg name="x_pos" default="10.0" if="$(eval trajectory_type == 'infinite')"/>
     <arg name="y_pos" default="0.0"  if="$(eval trajectory_type == 'infinite')"/>
     <arg name="yaw" default="1.57075"  if="$(eval trajectory_type == 'infinite')"/>
 
     <!--  ************** Robot model ***************  -->
-    <param name="robot_description" command="$(find xacro)/xacro.py $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/>
+    <!-- 机器人描述文件参数，使用 xacro 生成 URDF 文件 -->
+    <!-- <param name="robot_description" command="/opt/ros/noetic/lib/xacro/xacro $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/> -->
+    <param name="robot_description" command="/opt/ros/noetic/lib/xacro/xacro $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/>
 
+<!-- 加载空世界场景 -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
         <arg name="world_name" value="$(find gazebo_ros)/launch/empty_world.launch"/>
         <arg name="paused" value="false"/>
@@ -40,21 +55,27 @@
         <arg name="debug" value="false"/>
     </include>
 
+ <!-- 在 Gazebo 中生成机器人模型 -->
     <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model servingbot -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -param robot_description" />
      
+<!-- 机器人状态发布节点，发布频率设置为 50.0 -->
     <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
         <param name="publish_frequency" type="double" value="50.0" />
     </node>
 
     <!--  ************** Reference trajectory generation **************  -->
+    <!-- MPC 控制器的轨迹生成节点 -->
     <node name="mpc_trajectory_generation" pkg="mpc_ros" type="mpc_trajectory_generation.py"  if="$(eval controller == 'mpc')">
         <param name="trajectory_type" value="$(arg trajectory_type)" />
     </node>
+
+    <!-- DWA 控制器的轨迹生成节点 -->
     <node name="dwa_trajectory_generation" pkg="mpc_ros" type="dwa_trajectory_generation.py"  if="$(eval controller == 'dwa')">
         <param name="trajectory_type" value="$(arg trajectory_type)" />
     </node>
 
     <!--  ************** MPC Node **************  -->
+    <!-- MPC 轨迹跟踪节点，加载对应的参数文件 -->
     <node name="MPC_tracking" pkg="mpc_ros" type="tracking_reference_trajectory" output="screen" if="$(eval controller == 'mpc')" >
         <rosparam file="$(find mpc_ros)/params/mpc_local_square_params.yaml" command="load" />
         <!--rosparam file="$(find mpc_ros)/params/mpc_local_params.yaml" command="load" /-->
@@ -62,6 +83,7 @@
     </node>
 
     <!--  ************** Visualisation **************  -->
+     <!-- RViz 可视化节点，加载指定的 RViz 配置文件 -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mpc_ros)/rviz/rviz_navigation.rviz"/>
 
 </launch>

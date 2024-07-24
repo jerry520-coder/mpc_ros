@@ -4,6 +4,7 @@
     <param name="use_sim_time" value="true"/>
     <arg name="controller"  default="mpc" doc="opt: dwa, mpc, pure_pursuit"/> 
     <arg name="model"  default="serving_bot" doc="opt: serving_bot"/> 
+    <!-- TF 前缀，默认为空 -->
     <arg name="tf_prefix"  default=""/> 
 
     <!--  ************** GAZEBO Simulator ***************  -->
@@ -13,13 +14,21 @@
     <arg name="roll" default="0"/>
     <arg name="pitch" default="0"/>
     <arg name="yaw" default="-1.507"/>
+
+    <!-- 是否显示 GUI，默认为 true -->
     <arg name="gui" default="true"/>
 
     <!--  ************** Robot model ***************  -->
-    <param name="robot_description" command="$(find xacro)/xacro.py $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/>
+     <!-- 使用 xacro 文件生成机器人的 URDF 描述 -->
+    <!-- <param name="robot_description" command="/opt/ros/noetic/lib/xacro/xacro $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/> -->
+    <param name="robot_description" command="/opt/ros/noetic/lib/xacro/xacro $(find servingbot_description)/urdf/servingbot.urdf.xacro" if="$(eval model == 'serving_bot')"/>
 
+
+  <!-- 加载 Gazebo 空白世界 -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <!-- 指定世界文件 -->
         <arg name="world_name" value="$(find mpc_ros)/worlds/sq_world.world"/>
+         <!-- 模拟器启动时不暂停 -->
         <arg name="paused" value="false"/>
         <arg name="use_sim_time" value="true"/>
         <arg name="gui" value="$(arg gui)"/>
@@ -27,22 +36,24 @@
         <arg name="debug" value="false"/>
     </include>
     
-
+ <!-- 在 Gazebo 中生成 URDF 机器人模型 -->
     <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model servingbot -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -param robot_description" />
       
+ <!-- 发布机器人的状态 -->
     <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
         <param name="publish_frequency" type="double" value="50.0" />
     </node>
 
 
     <!--  ************** Map **************  -->
+     <!-- 加载地图服务器节点 -->
     <node name="map_server" pkg="map_server" type="map_server" args="$(find mpc_ros)/map/sq_world.yaml" output="screen">
         <param name="frame_id" value="map"/>
     </node>
 
 
     <!--  ************** Localization **************  -->
-    
+     <!-- 加载 AMCL 定位节点 -->
     <node pkg="amcl" type="amcl" name="amcl" output="screen">
         <rosparam file="$(find mpc_ros)/params/amcl_params.yaml" command="load" />
         <param name="initial_pose_x"            value="$(arg x_pos)"/>
@@ -51,6 +62,7 @@
     </node>
 
     <!--  ************** Navigation ***************  -->    
+    <!-- 加载 move_base 导航节点 -->
     <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
         <rosparam file="$(find mpc_ros)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find mpc_ros)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
@@ -69,17 +81,24 @@
         <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS"  if="$(eval controller == 'dwa')"/>    
         
         <!-- external controller -->
+         <!-- 外部控制器重映射 -->
         <remap from="/cmd_vel" to="/fake_cmd" unless="$(eval controller == 'dwa')"/>
     </node>
     
     <!--  ************** MPC Node **************  -->
+    <!-- 加载 MPC 控制器节点 -->
     <node name="nav_mpc" pkg="mpc_ros" type="nav_mpc" output="screen" if="$(eval controller == 'mpc')" >
+         <!-- 从参数文件加载 MPC 参数 -->
         <rosparam file="$(find mpc_ros)/params/mpc_last_params.yaml" command="load" />
     </node>
 
     <!--  ************** Pure Pursuit **************  -->
+    <!-- 加载 Pure Pursuit 控制器节点 -->
     <node name="Pure_Pursuit" pkg="mpc_ros" type="Pure_Pursuit" output="screen" if="$(eval controller == 'pure_pursuit')" >
+     <!-- 从参数文件加载 Pure Pursuit 参数 -->
         <rosparam file="$(find mpc_ros)/params/pure_pursuit_params.yaml" command="load" />
+
+        <!-- 话题重映射 -->
         <remap from="/pure_pursuit/odom" to="/odom" />
         <remap from="/pure_pursuit/global_planner" to="/move_base/GlobalPlanner/plan" />
         <remap from="/pure_pursuit/goal" to="/move_base_simple/goal" />
@@ -87,5 +106,6 @@
     </node>
 
     <!--  ************** Visualisation **************  -->
+    <!-- 加载 RViz 可视化工具 -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mpc_ros)/params/total_rviz_navigation.rviz"/>
 </launch>

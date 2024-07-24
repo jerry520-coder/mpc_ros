@@ -1,8 +1,11 @@
 <launch>
 
   <!-- The path_ekf_plotter node -->
+  <!-- odom_path_plotter 节点，用于绘制路径 -->
   <node name="odom_path_plotter" type="odom_path_plotter.py" pkg="mpc_ros">
+    <!-- 重映射 odom 话题，将原始的 /odom 话题映射到 /odom -->
     <remap from="odom" to="odom"/>
+     <!-- 设置最大列表追加长度为 10000.0，这表示路径节点列表的最大长度 -->
     <param name="max_list_append" type="double" value="10000.0" />
   </node>
 
